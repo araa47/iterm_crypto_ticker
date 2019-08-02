@@ -8,7 +8,8 @@ import ccxt.async_support as ccxt
 exchange = "binance"
 # Define Currency , ex: BTC/USDT
 pair = "BTC/USDT"
-
+# Define Update frequency in seconds
+updateFrequency = 5
 
 # Initialize exchange interface
 exchIface = getattr(ccxt, exchange)()
@@ -33,33 +34,37 @@ async def get_price(pair):
 
     return result
 
+# Function that generates a iterm knobs and component, given exchange and pair
+
+
+def componentGenerator(pair, exchange, updateFrequency):
+    key = f"ticker_{exchange}_{pair}"
+    knobs = [iterm2.CheckboxKnob(key, False, key)]
+    component = iterm2.StatusBarComponent(
+        short_description=key,
+        detailed_description="Crypto Ticker Component, supporting over 100 exchanges and 1000 coins",
+        knobs=knobs,
+        exemplar="BTC $1",
+        update_cadence=updateFrequency,
+        identifier=f"com.iterm2.example.{key}")
+    return knobs, component
+
 
 async def main(connection):
     global pair
-    # Define the configuration knobs:
-    vl = "crypto_ticker"
-    knobs = [iterm2.CheckboxKnob("Crypto Ticker", False, vl)]
-    component = iterm2.StatusBarComponent(
-        short_description="Crypto Ticker",
-        detailed_description="Crypto Ticker Component, supporting over 100 exchanges and 1000 coins",
-        knobs=knobs,
-        exemplar="BTC $100,000",
-        update_cadence=5,
-        identifier="com.iterm2.example.btc-ticker")
+    global exchange
+    global updateFrequency
 
-    # This function gets called whenever any of the paths named in defaults (below) changes
-    # or its configuration changes.
-    # References specify paths to external variables (like rows) and binds them to
-    # arguments to the registered function (coro). When any of those variables' values
-    # change the function gets called.
+    knobs, component = componentGenerator(pair, exchange, updateFrequency)
+
     @iterm2.StatusBarRPC
-    async def coro(
+    async def tickerUpdate(
             knobs,
     ):
         price = await get_price(pair)
         return f"{pair} ${price}"
 
     # Register the component.
-    await component.async_register(connection, coro)
+    await component.async_register(connection, tickerUpdate)
 
 iterm2.run_forever(main)
